@@ -14,16 +14,29 @@ local function isInstance(object, query_type)
     return false;
 end;
 
+local function escape(data)
+    return (data:gsub("\\(%d+)", function(num)
+        return string.char(num);
+    end));
+end;
+
 local function isSpace(ch)
     return ch == ' ' or ch == '\t' or ch == '\r' or ch == '\n' or ch == '\v' or ch == '\f';
 end;
 
 local function class(init, properties, inherit)
-    local class = {};
+    local class = setmetatable({}, {
+        __tostring = function(self)
+            return self.class_name or "[UNNAMED CLASS]";
+        end;
+    });
     for k,v in next, (inherit or {}) do
         class[k] = v;
     end;
     class.__index = class;
+    function class:__tostring()
+        return "inst of " .. (class.class_name or "[UNNAMED CLASS]");
+    end;
 
     for k,v in next, (properties or {}) do
         class[k] = v;
@@ -69,11 +82,12 @@ local function enum(items)
     }, {
         __call = function(self, name)
             self.name = name;
-            setmetatable(self, nil);
+            setmetatable(self, {
+                __index = function(_, key)
+                    return "'" .. tostring(key) .. "' is not a valid member of enum '" .. (enum.name or "[UNNAMED ENUM]") .. "'";
+                end,
+            });
             return self;
-        end,
-        __index = function(_, key)
-            return "'" .. tostring(key) .. "' is not a valid member of enum '" .. (enum.name or "[UNNAMED ENUM]") .. "'";
         end,
     });
 
@@ -1736,6 +1750,7 @@ local ParseOptions = simpleclass{"allow_declaration_syntax", "capture_comments"}
 return {
     binaryToInt = binaryToInt,
     isInstance = isInstance,
+    escape = escape,
     isSpace = isSpace,
     class = class,
     simpleclass = simpleclass,
